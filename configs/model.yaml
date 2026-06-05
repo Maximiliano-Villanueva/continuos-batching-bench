@@ -1,0 +1,11 @@
+# Active benchmark target. Resolved via configs/models.yaml (model_key).
+model_key: gemma-4-e4b
+# Prefer MLX checkpoints from models.yaml when true; false uses upstream hf_id
+use_mlx_weights: true
+# Tags this run; must match how the vLLM server was started (see scripts/serve.sh)
+speculative_enabled: false
+
+base_url: "http://127.0.0.1:8000/v1"
+default_max_tokens: 128
+long_output_max_tokens: 512
+timeout_seconds: 300

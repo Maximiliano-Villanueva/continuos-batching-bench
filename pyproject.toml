@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "continuous-batching"
+version = "0.1.0"
+description = "Reproducible latency, throughput, and memory benchmarks for vLLM continuous batching on Apple Silicon"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27.0",
+    "openai>=1.40.0",
+    "pydantic>=2.8.0",
+    "pyyaml>=6.0.1",
+    "psutil>=6.0.0",
+    "pandas>=2.2.0",
+    "plotly>=5.22.0",
+    "streamlit>=1.37.0",
+    "tiktoken>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+cb-bench = "continuous_batching.cli:main"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["continuous_batching"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/continuous_batching" = "continuous_batching"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "integration: tests that require a live vLLM server",
+]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

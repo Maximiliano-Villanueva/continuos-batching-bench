@@ -1,0 +1,54 @@
+# Model registry for benchmarks on Apple Silicon (vllm-metal / MLX).
+#
+# Why mlx-community?
+# On Mac, vllm-metal uses MLX weights. The mlx-community org publishes pre-converted
+# 4-bit (etc.) checkpoints so you avoid manual conversion. You can also use upstream
+# IDs (e.g. Qwen/Qwen3.5-4B) when your vllm-metal build loads them directly.
+#
+# Speculative decoding is configured on the SERVER (vllm serve), not in this client.
+# Run the matching serve script, then benchmark with --speculative on|off to tag results.
+
+models:
+  gemma-4-e4b:
+    display_name: "Gemma 4 E4B"
+    # Primary checkpoint for Metal (BF16 MLX; 4-bit fails KV-shared layer load on vllm-metal)
+    hf_id: mlx-community/gemma-4-e4b-it-bf16
+    mlx_quant_hf_id: mlx-community/gemma-4-e4b-it-4bit
+    upstream_hf_id: google/gemma-4-e4b-it
+    text_only: true
+    # Required for MLX checkpoints: skip MM encoders (avoids missing video processor files).
+    serve_base_args: >-
+      --max-model-len 8192
+      --limit-mm-per-prompt.image 0
+      --limit-mm-per-prompt.video 0
+      --limit-mm-per-prompt.audio 0
+    speculative:
+      # Gemma 4 has no native MTP; use draft-model speculative decoding on vLLM.
+      method: draft_model
+      when_enabled:
+        serve_args: '--speculative-config {"model":"mlx-community/gemma-3-1b-it-qat-4bit","num_speculative_tokens":4}'
+      when_disabled:
+        serve_args: ""
+      notes: >
+        Draft model must fit in unified memory alongside the 4B target.
+        Adjust draft checkpoint per your vllm-metal version.
+
+  qwen3.5-4b:
+    display_name: "Qwen3.5 4B"
+    # Upstream (vllm-metal lists Qwen3.5 family); MLX quant optional for RAM savings
+    hf_id: Qwen/Qwen3.5-4B
+    mlx_hf_id: mlx-community/Qwen3.5-4B-MLX-4bit
+    text_only: true
+    speculative:
+      # Qwen3.5 supports Multi-Token Prediction (MTP) speculative decoding
+      method: mtp
+      when_enabled:
+        serve_args: '--speculative-config {"method":"qwen3_next_mtp","num_speculative_tokens":2}'
+        reasoning_parser: qwen3
+      when_disabled:
+        serve_args: ""
+      notes: >
+        Use --reasoning-parser qwen3 when serving with MTP if your build requires it.
+
+# Default model key when --model is omitted (see configs/model.yaml)
+default_model_key: gemma-4-e4b

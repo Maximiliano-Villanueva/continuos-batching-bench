@@ -1,0 +1,15 @@
+.venv/
+.venv-vllm-metal/
+.cursor/
+.vllm-metal-install.sh
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+results/
+results_test/
+*.db
+.DS_Store
+dist/
+*.egg-info/

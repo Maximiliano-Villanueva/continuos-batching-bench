@@ -1,0 +1,8 @@
+{"id": "short-1", "prompt_class": "short", "text": "What is 2+2? Answer in one sentence."}
+{"id": "short-2", "prompt_class": "short", "text": "Name three colors. Be brief."}
+{"id": "short-3", "prompt_class": "short", "text": "Translate 'hello' to Spanish in one word."}
+{"id": "short-4", "prompt_class": "short", "text": "Is water wet? One sentence only."}
+{"id": "long-1", "prompt_class": "long", "text": "Summarize the following text in three bullet points.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. "}
+{"id": "reasoning-1", "prompt_class": "reasoning", "text": "A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Show your reasoning step by step.", "max_tokens": 256}
+{"id": "reasoning-2", "prompt_class": "reasoning", "text": "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets? Explain your reasoning.", "max_tokens": 256}
+{"id": "long-output-1", "prompt_class": "short_long_output", "text": "Write a detailed 500-word essay about the history of continuous batching in LLM inference.", "max_tokens": 512}

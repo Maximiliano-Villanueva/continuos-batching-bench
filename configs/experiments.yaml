@@ -1,0 +1,121 @@
+# Benchmark profiles control sample size and statistical power.
+# Use `profile: rigorous` for publishable results; `smoke` for quick connectivity checks.
+#
+# Measured requests per scenario = wave_size × repetitions
+# See: python scripts/estimate_run_size.py
+
+profile: rigorous
+
+profiles:
+  smoke:
+    smoke: true
+    repetitions: 1
+    warmup_requests: 0
+    default_concurrency: 2
+    concurrency_sweep: [1, 2]
+    e4_wave_size: 4
+    e6_wave_size: 4
+    e2_wave_cycles: 1
+    e1_mix_cycles: 1
+    e5_short_mix_count: 2
+    e7_wave_size: 4
+    e7_k_values: [1, 2]
+
+  rigorous:
+    smoke: false
+    repetitions: 15
+    warmup_requests: 3
+    default_concurrency: 8
+    concurrency_sweep: [1, 2, 4, 8, 16]
+    # E4: many short requests per K — core continuous-batching evidence
+    e4_wave_size: 48
+    # E6: enough chat vs completions samples
+    e6_wave_size: 32
+    # E2: repeat 4-prompt order to stress batch ordering
+    e2_wave_cycles: 5
+    # E1 long+short mix: 5 prompts × 5 cycles = 25 requests per repetition
+    e1_mix_cycles: 5
+    # long-output request plus concurrent short noise
+    e5_short_mix_count: 12
+    # E7 speculative A/B: decode-heavy at scale
+    e7_wave_size: 24
+    e7_k_values: [1, 4, 8]
+    e3_wave_size: 8
+    # Warn in export if a scenario has fewer successful samples than this
+    min_samples_per_scenario: 30
+
+warmup_requests: 3
+repetitions: 15
+concurrency_sweep: [1, 2, 4, 8, 16]
+default_concurrency: 8
+
+e4_wave_size: 48
+e6_wave_size: 32
+e2_wave_cycles: 5
+e1_mix_cycles: 5
+e5_short_mix_count: 12
+e7_wave_size: 24
+e7_k_values: [1, 4, 8]
+e3_wave_size: 8
+min_samples_per_scenario: 30
+
+experiments:
+  - id: E1
+    name: long_prompt_mix
+    enabled: true
+    modes: [sequential, concurrent]
+    waves:
+      - name: all_long
+        prompt_classes: [long]
+        wave_cycles: 1
+      - name: long_short_mix
+        prompt_classes: [long, short, short, long, short]
+        wave_cycles: 5
+      - name: all_short
+        prompt_classes: [short]
+        wave_size: 16
+
+  - id: E2
+    name: long_prompt_position
+    enabled: true
+    modes: [concurrent]
+    concurrency: 8
+    orders:
+      - name: long_first
+        prompt_classes: [long, short, short, short]
+        wave_cycles: 5
+      - name: long_last
+        prompt_classes: [short, short, short, long]
+        wave_cycles: 5
+
+  - id: E3
+    name: reasoning_vs_long
+    enabled: true
+    modes: [sequential, concurrent]
+    prompt_classes: [reasoning, long]
+
+  - id: E4
+    name: short_prompt_k_sweep
+    enabled: true
+    modes: [concurrent]
+    prompt_classes: [short]
+
+  - id: E5
+    name: short_long_output
+    enabled: true
+    modes: [sequential, concurrent]
+    prompt_classes: [short_long_output]
+    mixed_with: [short]
+
+  - id: E6
+    name: chat_vs_completions
+    enabled: true
+    modes: [concurrent]
+    prompt_classes: [short]
+    api_modes: [chat, completions]
+
+  - id: E7
+    name: speculative_decoding
+    enabled: true
+    modes: [sequential, concurrent]
+    prompt_classes: [short, short_long_output]
