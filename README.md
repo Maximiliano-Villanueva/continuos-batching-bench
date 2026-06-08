@@ -35,19 +35,51 @@ flowchart LR
 
 ---
 
-## Highlights (Gemma 4 E4B, rigorous profile)
+## Results
 
-Sample auto-summaries from completed runs are in [`docs/sample-results/`](docs/sample-results/). Headline observations on Apple Silicon with `mlx-community/gemma-4-e4b-it-bf16`:
+I ran the full **rigorous** profile twice on Gemma 4 (`mlx-community/gemma-4-e4b-it-bf16`) with vllm-metal: once with speculative decoding off, once on (draft model `gemma-3-1b-it-qat-4bit`). Same HTTP client, same prompts, same concurrency levels — ~7,665 measured requests per run. The numbers below come straight from those SQLite runs; the screenshots are from `make dashboard` (pick a run in the sidebar, same as you would locally).
 
-| Area | Finding |
-|------|---------|
-| **Concurrency sweep (E4)** | Throughput scales from ~18 tok/s at K=1 to ~92–97 tok/s at K=16 (~5×); per-request p99 latency rises with K—the classic batching tradeoff. |
-| **Speculative decoding (E4, K=16)** | Draft speculative decoding yields ~6% higher throughput and a smoother p99 tail vs non-speculative at high concurrency. |
-| **Prompt placement (E2)** | Long prompt **last** improves short-prompt p99 (~1.3 s vs ~3.4 s) versus long-first ordering; long-prompt tail latency is higher when scheduled last. |
-| **API surface (E6)** | Chat completions are dramatically faster than raw Completions for the same model (~1 s vs ~14 s p50 E2E). |
-| **Decode-heavy load (E7)** | Long-output scenarios dominate wall time (~22–55 s p50); speculative on/off differs by only ~1–3% overall. |
+### Continuous batching actually moves the needle
 
-Re-run the suite locally to reproduce on your hardware, or inspect the committed summaries for the full bullet list.
+Experiment E4 hammers the server with short prompts at K = 1, 2, 4, 8, 16. With speculation off, throughput climbed from **18.3 tok/s** at K=1 to **91.7 tok/s** at K=16 — roughly **5×** more output for the same model. That is the whole point of serving with batching enabled.
+
+The cost shows up in tail latency. Median request time stayed under a second even at K=16, but **p99 went from 342 ms to 1,398 ms**. You are trading per-request worst-case latency for aggregate throughput, and at K=16 the trade is steep. There is also a small oddity at K=2 (throughput drops to 15.5 tok/s before recovering at K=4), which suggests very light concurrency is an awkward operating point on this stack — not enough batching benefit yet, but enough contention to hurt.
+
+*Dashboard → E4 K sweep, speculative off (`740e0566d01c` in sidebar):*
+
+![E4 throughput vs K — Streamlit dashboard, speculative off](docs/images/dashboard/02-e4-throughput-spec-off.png)
+
+### Speculative decoding mattered where the server was already busy
+
+At K=1, turning speculation on changed almost nothing (**18.3 → 18.6 tok/s**). At K=16 it was a different story: **91.7 → 97.2 tok/s** (+6%) and p99 **1,398 → 1,169 ms** (−16%). The non-speculative run has a visible cliff at K=16; switch the sidebar run to spec on and the tail flattens. Draft speculation did not rescue low-concurrency latency — it helped when the batch was already full.
+
+*Speculative off — tail latency:*
+
+![E4 E2E p99 vs K — speculative off](docs/images/dashboard/02b-e4-p99-spec-off.png)
+
+*Speculative on — same experiment, run `3f61df7ade09` in sidebar:*
+
+![E4 E2E p99 vs K — speculative on](docs/images/dashboard/03b-e4-p99-spec-on.png)
+
+### Prompt order in a mixed batch is not a detail
+
+E2 puts one long prompt in a wave of shorts at concurrency 8. When the long prompt went **first**, short requests hit a **3.4 s** p99. When it went **last**, that dropped to **1.3 s** — the shorts stopped waiting behind a prefilled batch. The long prompt itself paid for that: its p99 went from **12.0 s** to **16.2 s**. Nothing magic about speculation here; it is queueing dynamics. If you care about short-request tails in a mixed workload, *when* the big request arrives matters as much as *how many* requests you send.
+
+![E2 Position tab — Streamlit dashboard](docs/images/dashboard/04-e2-position.png)
+
+### Pick the right API before tuning the server
+
+E6 sent identical short prompts through Chat and Completions. Chat landed at **941 ms** p50; Completions at **13.9 s**. Same model, same hardware — a **15×** gap from the API surface alone. Any conversation about batching or speculative decoding is secondary if the application path is wrong.
+
+![E6 API tab — Chat vs Completions box plot](docs/images/dashboard/05-e6-api.png)
+
+### Long outputs dominate; speculation nudges rather than transforms
+
+On decode-heavy workloads (E7), p50 end-to-end times sat between **11 s and 28 s** depending on concurrency. Speculative on vs off moved throughput by **1–4%** and shaved a few percent off median latency — real, but small compared to the cost of generating tens of thousands of tokens. Reasoning prompts in E3 were worse still (**28–34 s** p50), though speculation did help there more noticeably (**−16%** on reasoning p50, **+15%** throughput).
+
+---
+
+Re-run the suite on your own Mac to see how these numbers shift on your chip and memory. After `make bench-gemma-off`, open `make dashboard` — you should see the same tabs, sidebar run picker, and charts. Full bullet exports: [`docs/sample-results/`](docs/sample-results/). To regenerate README screenshots: `make dashboard-screenshots` (with the dashboard running).
 
 ---
 
@@ -223,7 +255,7 @@ src/continuous_batching/
   evaluation/         statistics, auto-conclusions
   reporting/          dashboard, export
 scripts/              serve.sh, install, health checks
-docs/                 reproduction guide, walkthrough, sample results
+docs/                 reproduction guide, walkthrough, charts, sample results
 tests/                unit + optional integration tests
 ```
 

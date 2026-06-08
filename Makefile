@@ -68,3 +68,9 @@ dashboard:
 
 export:
 	.venv/bin/cb-bench export --results-dir results
+
+readme-charts:
+	.venv/bin/python scripts/generate_readme_charts.py
+
+dashboard-screenshots:
+	STREAMLIT_URL=$${STREAMLIT_URL:-http://127.0.0.1:8501} .venv/bin/python scripts/capture_dashboard_screenshots.py
